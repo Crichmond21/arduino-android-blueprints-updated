@@ -10,7 +10,7 @@ mentioned above. This book is a fantastic utility for working with
  Android and Arduino projects. It covers many subjects and was 
  incredibly helpful to me. 
 
-#### A little background
+#### A little background 📺
 I am a currently a student at Wentworth Institute of Technology (as of 
 December 2019) and I just finished a the course Mobile Health 
 (COMP 3800). In this course we used this Book and had to create systems 
@@ -23,4 +23,18 @@ many of my classmate have done the same. In order to save more hours of
 needless combing through poor documentation, I took it upon myself to 
 update this code to work with modern versions of android (as of right 
 now Android 10).
+
+
+# Current Progress 📲
+
+- [ ] Chapter 1
+- [x] Chapter 2
+- [ ] Chapter 3
+- [ ] Chapter 4
+- [ ] Chapter 5
+- [ ] Chapter 6
+- [ ] Chapter 7
+- [ ] Chapter 8
+- [ ] Chapter 9
+- [ ] Chapter 10
 
