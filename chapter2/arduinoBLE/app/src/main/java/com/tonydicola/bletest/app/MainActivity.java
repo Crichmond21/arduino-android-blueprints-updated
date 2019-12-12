@@ -1,5 +1,6 @@
 package com.tonydicola.bletest.app;
 
+import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothAdapter.LeScanCallback;
@@ -8,7 +9,15 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
+import android.bluetooth.BluetoothManager;
+import android.bluetooth.le.BluetoothLeScanner;
+import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanResult;
+import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
+import android.provider.Settings;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -29,6 +38,7 @@ public class MainActivity extends Activity {
     public static UUID UART_UUID = UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
     public static UUID TX_UUID = UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E");
     public static UUID RX_UUID = UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E");
+
     // UUID for the BTLE client characteristic which is necessary for notifications.
     public static UUID CLIENT_UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
 
@@ -39,11 +49,19 @@ public class MainActivity extends Activity {
     private Button switchon;
     private Button switchoff;
 
-    // BTLE stateta
+    // BTLE
+    private final static int REQUEST_ENABLE_BT = 1;
+    private final static int REQUEST_ENABLE_GPS = 2;
+
+    private BluetoothManager manager;
     private BluetoothAdapter adapter;
+    private BluetoothLeScanner scanner;
+
     private BluetoothGatt gatt;
     private BluetoothGattCharacteristic tx;
     private BluetoothGattCharacteristic rx;
+
+
 
     // Main BTLE device callback where much of the logic occurs.
     private BluetoothGattCallback callback = new BluetoothGattCallback() {
@@ -107,6 +125,31 @@ public class MainActivity extends Activity {
         }
     };
 
+
+    private ScanCallback scanCallback = new ScanCallback() {
+        @Override
+        public void onScanResult(int callbackType, ScanResult result) {
+            super.onScanResult(callbackType, result);
+
+            writeLine("Found device: " + result.getDevice().getAddress());
+
+            //TODO: Add UART service verification
+            //Right now it will just connect to the first available Bluetooth LE Device
+            //Modify this if statement to with the line ("DEVICENAME").equals(result.getDevice().getName())
+            //This also will need to be wrapped in a try / catch block because .getName() often will
+            // throw and exception due to the face not all devices have names
+            if(true) {
+                gatt = result.getDevice().connectGatt(getApplicationContext(), false, callback);
+                scanner.stopScan(scanCallback);
+            }
+        }
+    };
+
+    /*
+    *
+    * DEPRECATED CODE: The LeScan methods are no longer used by android
+    *
+
     // BTLE device scanning callback.
     private LeScanCallback scanCallback = new LeScanCallback() {
         // Called when a device is found.
@@ -125,117 +168,8 @@ public class MainActivity extends Activity {
         }
     };
 
-    // OnCreate, called once to initialize the activity.
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+     */
 
-        // Grab references to UI elements.
-        messages = (TextView) findViewById(R.id.messages);
-        input = (EditText) findViewById(R.id.input);
-
-        adapter = BluetoothAdapter.getDefaultAdapter();
-        setoutput = (Button) findViewById(R.id.setToOutputBtn);
-        switchon = (Button) findViewById(R.id.switchOnBtn);
-        switchoff = (Button) findViewById(R.id.switchOffBtn);
-
-        // Set Commands to be send to Bluetooth Module
-
-        setoutput.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                String setOutputMessage = "/mode/7/o /";
-                tx.setValue(setOutputMessage.getBytes(Charset.forName("UTF-8")));
-                if (gatt.writeCharacteristic(tx)) {
-                    writeLine("Sent: " + setOutputMessage);
-                }
-                else {
-                    writeLine("Couldn't write TX characteristic!");
-                }
-
-            }
-        });
-
-        switchon.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                String switchOnMessage = "/digital/7/1 /";
-                tx.setValue(switchOnMessage.getBytes(Charset.forName("UTF-8")));
-                if (gatt.writeCharacteristic(tx)) {
-                    writeLine("Sent: " + switchOnMessage);
-                }
-                else {
-                    writeLine("Couldn't write TX characteristic!");
-                }
-            }
-        });
-
-        switchoff.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                String switchOffMessage = "/digital/7/0 /";
-                tx.setValue(switchOffMessage.getBytes(Charset.forName("UTF-8")));
-                if (gatt.writeCharacteristic(tx)) {
-                    writeLine("Sent: " + switchOffMessage);
-                }
-                else {
-                    writeLine("Couldn't write TX characteristic!");
-                }
-            }
-        });
-    }
-
-    // OnResume, called right before UI is displayed.  Start the BTLE connection.
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // Scan for all BTLE devices.
-        // The first one with the UART service will be chosen--see the code in the scanCallback.
-        writeLine("Scanning for devices...");
-        adapter.startLeScan(scanCallback);
-    }
-
-    // OnStop, called right before the activity loses foreground focus.  Close the BTLE connection.
-    @Override
-    protected void onStop() {
-        super.onStop();
-        if (gatt != null) {
-            // For better reliability be careful to disconnect and close the connection.
-            gatt.disconnect();
-            gatt.close();
-            gatt = null;
-            tx = null;
-            rx = null;
-        }
-    }
-
-    // Handler for tap on the send button.
-    public void sendClick(View view) {
-        String message = input.getText().toString();
-        if (tx == null || message == null || message.isEmpty()) {
-            // Do nothing if there is no device or message to send.
-            return;
-        }
-        // Update TX characteristic value.  Note the setValue overload that takes a byte array must be used.
-        tx.setValue(message.getBytes(Charset.forName("UTF-8")));
-        if (gatt.writeCharacteristic(tx)) {
-            writeLine("Sent: " + message);
-        }
-        else {
-            writeLine("Couldn't write TX characteristic!");
-        }
-    }
-
-    // Write some text to the messages text view.
-    // Care is taken to do this on the main UI thread so writeLine can be called
-    // from any thread (like the BTLE callback).
-    private void writeLine(final CharSequence text) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                messages.append(text);
-                messages.append("\n");
-            }
-        });
-    }
 
     // Filtering by custom UUID is broken in Android 4.3 and 4.4, see:
     //   http://stackoverflow.com/questions/18019161/startlescan-with-128-bit-uuids-doesnt-work-on-native-android-ble-implementation?noredirect=1#comment27879874_18019161
@@ -288,6 +222,134 @@ public class MainActivity extends Activity {
             }
         }
         return uuids;
+    }
+
+
+    // OnCreate, called once to initialize the activity.
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        // Grab references to UI elements.
+        messages = (TextView) findViewById(R.id.messages);
+        input = (EditText) findViewById(R.id.input);
+
+        setoutput = (Button) findViewById(R.id.setToOutputBtn);
+        switchon = (Button) findViewById(R.id.switchOnBtn);
+        switchoff = (Button) findViewById(R.id.switchOffBtn);
+
+
+        manager =  (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+        adapter = manager.getAdapter();
+
+        requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_ENABLE_GPS);
+
+        if (adapter == null || !adapter.isEnabled()) {
+            Intent enableBtIntent =
+                    new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+            Intent enableLocationIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+            startActivityForResult(enableLocationIntent, REQUEST_ENABLE_GPS);
+        }
+
+        scanner = adapter.getBluetoothLeScanner();
+
+        // Set Commands to be send to Bluetooth Module
+
+        setoutput.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                String setOutputMessage = "/mode/7/o /";
+                tx.setValue(setOutputMessage.getBytes(Charset.forName("UTF-8")));
+                if (gatt.writeCharacteristic(tx)) {
+                    writeLine("Sent: " + setOutputMessage);
+                }
+                else {
+                    writeLine("Couldn't write TX characteristic!");
+                }
+
+            }
+        });
+
+        switchon.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                String switchOnMessage = "/digital/7/1 /";
+                tx.setValue(switchOnMessage.getBytes(Charset.forName("UTF-8")));
+                if (gatt.writeCharacteristic(tx)) {
+                    writeLine("Sent: " + switchOnMessage);
+                }
+                else {
+                    writeLine("Couldn't write TX characteristic!");
+                }
+            }
+        });
+
+        switchoff.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                String switchOffMessage = "/digital/7/0 /";
+                tx.setValue(switchOffMessage.getBytes(Charset.forName("UTF-8")));
+                if (gatt.writeCharacteristic(tx)) {
+                    writeLine("Sent: " + switchOffMessage);
+                }
+                else {
+                    writeLine("Couldn't write TX characteristic!");
+                }
+            }
+        });
+    }
+
+    // OnResume, called right before UI is displayed.  Start the BTLE connection.
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Scan for all BTLE devices.
+        // The first one with the UART service will be chosen--see the code in the scanCallback.
+        writeLine("Scanning for devices...");
+        scanner.startScan(scanCallback);
+    }
+
+    // OnStop, called right before the activity loses foreground focus.  Close the BTLE connection.
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (gatt != null) {
+            // For better reliability be careful to disconnect and close the connection.
+            gatt.disconnect();
+            gatt.close();
+            gatt = null;
+            tx = null;
+            rx = null;
+        }
+    }
+
+    // Handler for tap on the send button.
+    public void sendClick(View view) {
+        String message = input.getText().toString();
+        if (tx == null || message == null || message.isEmpty()) {
+            // Do nothing if there is no device or message to send.
+            return;
+        }
+        // Update TX characteristic value.  Note the setValue overload that takes a byte array must be used.
+        tx.setValue(message.getBytes(Charset.forName("UTF-8")));
+        if (gatt.writeCharacteristic(tx)) {
+            writeLine("Sent: " + message);
+        }
+        else {
+            writeLine("Couldn't write TX characteristic!");
+        }
+    }
+
+    // Write some text to the messages text view.
+    // Care is taken to do this on the main UI thread so writeLine can be called
+    // from any thread (like the BTLE callback).
+    private void writeLine(final CharSequence text) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                messages.append(text);
+                messages.append("\n");
+            }
+        });
     }
 
     // Boilerplate code from the activity creation:
