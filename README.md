@@ -27,7 +27,7 @@ now Android 10).
 
 # Current Progress 📲
 
-- [ ] Chapter 1
+- [x] Chapter 1
 - [x] Chapter 2
 - [ ] Chapter 3
 - [ ] Chapter 4
