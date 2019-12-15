@@ -131,18 +131,21 @@ public class MainActivity extends Activity {
         public void onScanResult(int callbackType, ScanResult result) {
             super.onScanResult(callbackType, result);
 
-            writeLine("Found device: " + result.getDevice().getAddress());
 
-            //TODO: Add UART service verification
-            //Right now it will just connect to the first available Bluetooth LE Device
-            //Modify this if statement to with the line ("DEVICENAME").equals(result.getDevice().getName())
-            //This also will need to be wrapped in a try / catch block because .getName() often will
-            // throw and exception due to the face not all devices have names
-            if(true) {
-                gatt = result.getDevice().connectGatt(getApplicationContext(), false, callback);
-                scanner.stopScan(scanCallback);
+            if(parseUUIDs(result.getScanRecord().getBytes()).contains(UART_UUID)){
+
+                writeLine("Found device: " + result.getDevice().getAddress());
+
+                //Right now it will just connect to the first available Bluetooth LE Device
+                //Modify this if statement to with the line ("DEVICENAME").equals(result.getDevice().getName())
+                //This also will need to be wrapped in a try / catch block because .getName() often will
+                // throw and exception due to the face not all devices have names
+                if(true) {
+                    gatt = result.getDevice().connectGatt(getApplicationContext(), false, callback);
+                    scanner.stopScan(scanCallback);
+                }
             }
-        }
+            }
     };
 
     /*
@@ -254,6 +257,7 @@ public class MainActivity extends Activity {
         }
 
         scanner = adapter.getBluetoothLeScanner();
+        scanner.startScan(scanCallback);
 
         // Set Commands to be send to Bluetooth Module
 
@@ -305,7 +309,7 @@ public class MainActivity extends Activity {
         // Scan for all BTLE devices.
         // The first one with the UART service will be chosen--see the code in the scanCallback.
         writeLine("Scanning for devices...");
-        scanner.startScan(scanCallback);
+        Log.v("myApp","Scanning Started");
     }
 
     // OnStop, called right before the activity loses foreground focus.  Close the BTLE connection.
