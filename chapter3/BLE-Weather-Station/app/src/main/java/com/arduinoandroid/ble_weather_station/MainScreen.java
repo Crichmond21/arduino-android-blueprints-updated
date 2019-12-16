@@ -1,5 +1,6 @@
 package com.arduinoandroid.ble_weather_station;
 
+import android.Manifest;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -7,7 +8,14 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
+import android.bluetooth.BluetoothManager;
+import android.bluetooth.le.BluetoothLeScanner;
+import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanResult;
+import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -40,10 +48,15 @@ public class MainScreen extends Activity {
     private Button light;
     private Button humidity;
     private String output;
-    private String output2;
 
     // BTLE state
+    private final static int REQUEST_ENABLE_BT = 1;
+    private final static int REQUEST_ENABLE_GPS = 2;
+
+    private BluetoothManager manager;
     private BluetoothAdapter adapter;
+    private BluetoothLeScanner scanner;
+
     private BluetoothGatt gatt;
     private BluetoothGattCharacteristic tx;
     private BluetoothGattCharacteristic rx;
@@ -112,6 +125,10 @@ public class MainScreen extends Activity {
         }
     };
 
+    /*
+
+    DEPRECATED CODE: The LeScan methods are no longer used by android
+
     // BTLE device scanning callback.
     private BluetoothAdapter.LeScanCallback scanCallback = new BluetoothAdapter.LeScanCallback() {
         // Called when a device is found.
@@ -122,6 +139,7 @@ public class MainScreen extends Activity {
             if (parseUUIDs(bytes).contains(UART_UUID)) {
                 // Found a device, stop the scan.
                 adapter.stopLeScan(scanCallback);
+
                 writeLine("Found UART service!");
                 // Connect to the device.
                 // Control flow will now go to the callback functions when BTLE events occur.
@@ -129,6 +147,34 @@ public class MainScreen extends Activity {
             }
         }
     };
+    */
+
+
+    private ScanCallback scanCallback = new ScanCallback(){
+        @Override
+        public void onScanResult(int callbackType, ScanResult result) {
+            super.onScanResult(callbackType, result);
+
+            writeLine("Found device: " + result.getDevice().getAddress());
+
+            if(parseUUIDs(result.getScanRecord().getBytes()).contains(UART_UUID)) {
+                writeLine("Found UART service!");
+
+                //Right now it will just connect to the first available Bluetooth LE UART Device
+                //Modify this if statement to with the line ("DEVICENAME").equals(result.getDevice().getName())
+                //This also will need to be wrapped in a try / catch block because .getName() often will
+                // throw and exception due to the face not all devices have names
+                if(true){
+                    gatt = result.getDevice().connectGatt(getApplicationContext(), false, callback);
+                    scanner.stopScan(scanCallback);
+                }
+            }
+        }
+    };
+
+
+
+
 
     // OnCreate, called once to initialize the activity.
     @Override
@@ -137,13 +183,31 @@ public class MainScreen extends Activity {
         setContentView(R.layout.activity_main_screen);
 
         // Grab references to UI elements.
-        dataOutput = (TextView) findViewById(R.id.dataOutputTextView);
-        connectionOutput = (TextView) findViewById(R.id.connectionStatusView);
+        dataOutput = findViewById(R.id.dataOutputTextView);
+        connectionOutput = findViewById(R.id.connectionStatusView);
 
         adapter = BluetoothAdapter.getDefaultAdapter();
-        temperature = (Button) findViewById(R.id.temperatureButton);
-        light = (Button) findViewById(R.id.lightButton);
-        humidity = (Button) findViewById(R.id.humidityButton);
+        temperature = findViewById(R.id.temperatureButton);
+        light = findViewById(R.id.lightButton);
+        humidity = findViewById(R.id.humidityButton);
+
+        //Define bluetooth objects
+        manager =  (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+        adapter = manager.getAdapter();
+
+        //Request location for bluetooth LE
+        requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, REQUEST_ENABLE_GPS);
+
+        if (adapter == null || !adapter.isEnabled()) {
+            Intent enableBtIntent =
+                    new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+            Intent enableLocationIntent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+            startActivityForResult(enableLocationIntent, REQUEST_ENABLE_GPS);
+        }
+
+        scanner = adapter.getBluetoothLeScanner();
+
 
         // Set Commands to be send to Bluetooth Module
 
@@ -194,7 +258,7 @@ public class MainScreen extends Activity {
         // Scan for all BTLE devices.
         // The first one with the UART service will be chosen--see the code in the scanCallback.
         writeLine("Scanning for devices...");
-        adapter.startLeScan(scanCallback);
+        scanner.startScan(scanCallback);
     }
 
     // OnStop, called right before the activity loses foreground focus.  Close the BTLE connection.

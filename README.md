@@ -24,20 +24,28 @@ needless combing through poor documentation, I took it upon myself to
 update this code to work with modern versions of android (as of right 
 now Android 10).
 
-In the process of updating the Android code I will also be adding arduino
+In the process of updating the Android code I will also be adding Arduino
 code that will work with the Adafruit Bluefruit LE UART friend (nRF51) 
 because I don't have access to the Adafruit nRF8001 that is used in the 
 book. This will give some more examples on how to solve problems with a 
-newwer bluetooth breakout that you can still buy today however this 
-bluetooth device is not compatiable with the aRest library so it will not 
-be able to process every aRest style request.
+newer bluetooth breakout that you can still buy today however this 
+bluetooth device is not compatible with the aRest library so it will not 
+be able to process every aRest style request. For the most part you should 
+also stay away from the aRest library because it is very process intense to 
+use on an Arduino and for most applications most of its features will be unused.
+
+# Goals 🥅
+It is my goal to update this code so that other students in Comp 3800 Mobile Health (and anyone in 
+general) wont have to waste hours pouring through the internet in order to figure out how to use 
+the newer Bluetooth LE framework in Android. It's really not that difficult to use the framework, 
+but there are hardly any resources online for it. 
 
 
 # Current Progress 📲
 
 - [x] Chapter 1
 - [x] Chapter 2
-- [ ] Chapter 3
+- [ ] Chapter 3 (In Progress)
 - [ ] Chapter 4
 - [ ] Chapter 5
 - [ ] Chapter 6

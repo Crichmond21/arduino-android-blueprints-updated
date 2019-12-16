@@ -136,7 +136,7 @@ public class MainActivity extends Activity {
 
                 writeLine("Found device: " + result.getDevice().getAddress());
 
-                //Right now it will just connect to the first available Bluetooth LE Device
+                //Right now it will just connect to the first available Bluetooth LE UART Device
                 //Modify this if statement to with the line ("DEVICENAME").equals(result.getDevice().getName())
                 //This also will need to be wrapped in a try / catch block because .getName() often will
                 // throw and exception due to the face not all devices have names
